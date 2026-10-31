@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>สั่งทำป้ายประเมินราคา</title>
+    <!-- นำเข้า LIFF SDK -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; }
+        input, select { width: 100%; padding: 8px; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; background: #06C755; color: white; border: none; border-radius: 5px; font-size: 16px; margin-top: 10px; }
+        #totalPrice { font-size: 20px; font-weight: bold; color: #d9534f; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h2>สั่งทำป้าย</h2>
+    <div class="form-group">
+        <label>ประเภทงาน</label>
+        <select id="material" onchange="calculatePrice()">
+            <option value="150" data-name="ไวนิล">ไวนิล (150 บ./ตร.ม.)</option>
+            <option value="400" data-name="ฟิวเจอร์บอร์ด+สติ๊กเกอร์">ฟิวเจอร์บอร์ด+สติ๊กเกอร์ (400 บ./ตร.ม.)</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>ความกว้าง (เมตร)</label>
+        <input type="number" id="width" value="1" step="0.1" oninput="calculatePrice()">
+    </div>
+    <div class="form-group">
+        <label>ความสูง (เมตร)</label>
+        <input type="number" id="height" value="1" step="0.1" oninput="calculatePrice()">
+    </div>
+    <div class="form-group">
+        <label>การออกแบบ</label>
+        <select id="design" onchange="calculatePrice()">
+            <option value="0" data-name="มีไฟล์งานแล้ว">มีไฟล์งานแล้ว (พร้อมพิมพ์)</option>
+            <option value="300" data-name="ให้ร้านออกแบบ">ให้ร้านออกแบบ (+300 บ.)</option>
+        </select>
+    </div>
+    <div class="form-group">
+        <label>วันที่ต้องการรับงาน</label>
+        <input type="date" id="date">
+    </div>
+
+    <div id="totalPrice">ยอดรวม: 150 บาท</div>
+    <button onclick="sendOrder()">ยืนยันการสั่งทำ</button>
+
+    <script>
+        // เริ่มต้นการทำงานของ LIFF
+        async function main() {
+            await liff.init({ liffId: "ใส่_LIFF_ID_ของคุณที่นี่" });
+        }
+        main();
+
+        // ฟังก์ชันคำนวณราคาทันทีที่พิมพ์
+        function calculatePrice() {
+            const materialPrice = parseFloat(document.getElementById('material').value);
+            const width = parseFloat(document.getElementById('width').value) || 0;
+            const height = parseFloat(document.getElementById('height').value) || 0;
+            const designFee = parseFloat(document.getElementById('design').value);
+            
+            const area = width * height;
+            const total = (area * materialPrice) + designFee;
+            
+            document.getElementById('totalPrice').innerText = "ยอดรวม: " + total.toLocaleString() + " บาท";
+            return total;
+        }
+
+        // ฟังก์ชันส่งข้อความกลับเข้าแชท LINE
+        async function sendOrder() {
+            if (!liff.isLoggedIn()) {
+                alert("กรุณาเปิดจากในแอป LINE");
+                return;
+            }
+
+            const materialSelect = document.getElementById('material');
+            const materialName = materialSelect.options[materialSelect.selectedIndex].getAttribute('data-name');
+            const width = document.getElementById('width').value;
+            const height = document.getElementById('height').value;
+            const designSelect = document.getElementById('design');
+            const designName = designSelect.options[designSelect.selectedIndex].getAttribute('data-name');
+            const date = document.getElementById('date').value;
+            const total = calculatePrice();
+
+            if (!date) { alert("กรุณาเลือกวันรับงาน"); return; }
+
+            const message = `📌 สรุปออเดอร์สั่งทำป้าย\nวัสดุ: ${materialName}\nขนาด: ${width} x ${height} เมตร\nการออกแบบ: ${designName}\nรับงานวันที่: ${date}\n💰 ยอดประเมิน: ${total.toLocaleString()} บาท`;
+
+            try {
+                // ส่งข้อความเข้าห้องแชทในฐานะลูกค้า
+                await liff.sendMessages([{ type: 'text', text: message }]);
+                liff.closeWindow(); // ปิดหน้าต่าง LIFF อัตโนมัติ
+            } catch (error) {
+                alert("เกิดข้อผิดพลาดในการส่งข้อความ: " + error);
+            }
+        }
+    </script>
+</body>
+</html>
